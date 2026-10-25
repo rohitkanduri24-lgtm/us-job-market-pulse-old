@@ -26,7 +26,7 @@ from . import config as C
 USER_AGENT = "us-job-market-pulse/1.0 (open-source labor market dashboard)"
 
 
-def _http(url: str, payload: dict | None = None, retries: int = 4) -> bytes:
+def _http(url: str, payload: dict | None = None, retries: int = 3) -> bytes:
     headers = {"User-Agent": USER_AGENT}
     data = None
     if payload is not None:
@@ -35,13 +35,13 @@ def _http(url: str, payload: dict | None = None, retries: int = 4) -> bytes:
     for attempt in range(retries):
         try:
             req = urllib.request.Request(url, data=data, headers=headers)
-            with urllib.request.urlopen(req, timeout=60) as resp:
+            with urllib.request.urlopen(req, timeout=25) as resp:
                 return resp.read()
         except (urllib.error.URLError, TimeoutError) as exc:
             if attempt == retries - 1:
                 raise
             wait = 3 * 2 ** attempt
-            print(f"    retrying in {wait}s ({exc})")
+            print(f"    retrying in {wait}s ({exc})", flush=True)
             time.sleep(wait)
     raise RuntimeError("unreachable")
 
@@ -61,7 +61,7 @@ def parse_fred_csv(raw: bytes, series_id: str) -> pd.DataFrame:
 def fetch_fred(series_ids) -> tuple[pd.DataFrame, list[str]]:
     frames, failed = [], []
     for sid in series_ids:
-        print(f"  FRED  {sid}")
+        print(f"  FRED  {sid}", flush=True)
         try:
             raw = _http(f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}")
             frames.append(parse_fred_csv(raw, sid))
@@ -103,7 +103,7 @@ def fetch_bls(series_ids: list[str]) -> tuple[pd.DataFrame, list[str]]:
     frames = []
     for i in range(0, len(series_ids), per_call):
         batch = series_ids[i:i + per_call]
-        print(f"  BLS   {len(batch)} series ({start}-{end})")
+        print(f"  BLS   {len(batch)} series ({start}-{end})", flush=True)
         payload = {"seriesid": batch, "startyear": str(start), "endyear": str(end)}
         if key:
             payload["registrationkey"] = key
