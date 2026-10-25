@@ -1,0 +1,15 @@
+industry_code,industry,openings_rate,hires_rate,layoffs_rate,openings_rate_yoy_change,hires_rate_yoy_change,layoffs_rate_yoy_change,net_hiring_rate,as_of
+440000,Retail trade,4.7,4.3,1.0,0.9,0.7,0.0,3.3,2026-08
+300000,Manufacturing,4.0,2.6,0.8,0.8,0.2,-0.2,1.8,2026-08
+510099,Financial activities,4.2,1.8,0.6,0.7,-0.3,-0.1,1.2,2026-08
+110099,Mining & logging,4.0,3.9,1.0,0.6,0.5,-0.5,2.9,2026-08
+230000,Construction,2.9,3.7,1.2,0.4,-0.4,-1.0,2.5,2026-08
+540099,Professional & business services,5.0,4.2,1.7,0.3,-0.4,-0.5,2.5,2026-08
+900000,Government,3.0,1.5,0.3,0.0,0.2,-0.1,1.2,2026-08
+480099,"Transportation, warehousing & utilities",4.5,3.4,1.4,0.0,-0.2,-0.1,2.0,2026-08
+420000,Wholesale trade,3.0,2.8,1.2,-0.1,0.7,0.5,1.6,2026-08
+620000,Health care & social assistance,5.4,2.9,0.8,-0.1,-0.1,0.2,2.1,2026-08
+510000,Information,4.3,1.6,1.0,-0.4,-0.8,-0.2,0.6,2026-08
+610000,Private educational services,3.0,2.7,0.8,-0.5,0.4,0.1,1.9,2026-08
+810000,Other services,3.8,4.0,1.1,-0.6,0.8,0.2,2.9,2026-08
+700000,Leisure & hospitality,4.7,5.3,1.5,-1.2,-0.3,-0.3,3.8,2026-08
