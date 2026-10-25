@@ -14,7 +14,9 @@ README_PATH = ROOT / "README.md"
 HISTORY_START = "2001-01-01"
 
 # ---------------------------------------------------------------------------
-# National series from FRED (St. Louis Fed). Public CSV endpoint, no API key.
+# National series. Most are pulled from the official BLS API (see NATIONAL_BLS);
+# USREC uses published NBER dates; weekly claims (ICSA/CCSA) need an optional
+# free FRED_API_KEY. Series keep their FRED ids as the internal names.
 # id -> (friendly name, frequency)
 # ---------------------------------------------------------------------------
 FRED_SERIES = {
@@ -39,6 +41,20 @@ FRED_SERIES = {
     "ICSA": ("Initial jobless claims", "W"),
     "CCSA": ("Continuing jobless claims", "W"),
 }
+
+# FRED-style id -> BLS series id (national, seasonally adjusted)
+NATIONAL_BLS = {
+    "JTSJOL": "JOL", "JTSHIL": "HIL", "JTSQUL": "QUL", "JTSLDL": "LDL",
+    "JTSJOR": "JOR", "JTSHIR": "HIR", "JTSQUR": "QUR", "JTSLDR": "LDR",
+    "UNRATE": "LNS14000000", "U6RATE": "LNS13327709", "UNEMPLOY": "LNS13000000",
+    "PAYEMS": "CES0000000001", "CES0500000003": "CES0500000003", "CPIAUCSL": "CUSR0000SA0",
+}
+
+
+def national_series_id(fred_id: str) -> str:
+    code = NATIONAL_BLS[fred_id]
+    return f"JTS000000000000000{code}" if len(code) == 3 else code
+
 
 # ---------------------------------------------------------------------------
 # Industry & state detail from the BLS Public Data API (JOLTS).
