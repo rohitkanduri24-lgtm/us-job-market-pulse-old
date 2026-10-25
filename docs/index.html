@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>US Job Market Pulse</title>
+<meta name="description" content="A weekly-refreshed dashboard of the US labor market: job openings, layoffs, jobless claims, wages and a Labor Market Health Score, built from BLS and FRED data.">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10); --rec: rgba(137,135,129,0.14);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --pos: #2a78d6; --neg: #e34948;
+  --good: #0ca30c; --good-text: #006300; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b; --critical-text: #b42727;
+  --seq-1: #b7d3f6; --seq-2: #86b6ef; --seq-3: #5598e7; --seq-4: #2a78d6; --seq-5: #1c5cab;
+  --seq-ink-1: #0b0b0b; --seq-ink-2: #0b0b0b; --seq-ink-3: #0b0b0b; --seq-ink-4: #ffffff; --seq-ink-5: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --rec: rgba(195,194,183,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --pos: #3987e5; --neg: #e66767;
+    --good-text: #0ca30c; --critical-text: #e66767;
+    --seq-1: #104281; --seq-2: #1c5cab; --seq-3: #2a78d6; --seq-4: #5598e7; --seq-5: #9ec5f4;
+    --seq-ink-1: #ffffff; --seq-ink-2: #ffffff; --seq-ink-3: #ffffff; --seq-ink-4: #0b0b0b; --seq-ink-5: #0b0b0b;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --rec: rgba(195,194,183,0.10);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --pos: #3987e5; --neg: #e66767;
+  --good-text: #0ca30c; --critical-text: #e66767;
+  --seq-1: #104281; --seq-2: #1c5cab; --seq-3: #2a78d6; --seq-4: #5598e7; --seq-5: #9ec5f4;
+  --seq-ink-1: #ffffff; --seq-ink-2: #ffffff; --seq-ink-3: #ffffff; --seq-ink-4: #0b0b0b; --seq-ink-5: #0b0b0b;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 64px; }
+header { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; justify-content: space-between; margin-bottom: 20px; }
+h1 { font-size: 28px; line-height: 1.15; margin: 0 0 4px; letter-spacing: -0.01em; }
+.sub { color: var(--ink-2); margin: 0; }
+.updated { color: var(--muted); font-size: 13px; }
+.controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--ring); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: transparent; color: var(--ink-2); font: inherit; font-size: 13px; padding: 6px 12px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.seg button:focus-visible { outline: 2px solid var(--s1); outline-offset: -2px; }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 18px 18px 14px; }
+.readout { margin-bottom: 16px; }
+.readout h2, .card h2 { font-size: 16px; margin: 0 0 2px; }
+.card .note { color: var(--ink-2); font-size: 13px; margin: 0 0 10px; }
+.readout ul { margin: 8px 0 0; padding-left: 18px; color: var(--ink-2); }
+.readout li { margin: 3px 0; }
+.readout li strong { color: var(--ink); }
+.kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.kpi { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 14px 16px; }
+.kpi .label { color: var(--ink-2); font-size: 13px; }
+.kpi .value { font-size: 28px; font-weight: 650; line-height: 1.2; margin: 2px 0; }
+.kpi .delta { font-size: 13px; color: var(--muted); }
+.delta .up-good, .delta .down-good { color: var(--good-text); }
+.delta .up-bad, .delta .down-bad { color: var(--critical-text); }
+.status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.status i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 16px; margin-bottom: 16px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend b { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.legend .rec { width: 12px; height: 10px; background: var(--rec); border-radius: 2px; }
+.chart { position: relative; width: 100%; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart text { font-family: inherit; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--ring);
+  border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); white-space: nowrap; display: none; z-index: 5; }
+.tip .d { color: var(--ink-2); margin-bottom: 4px; }
+.tip .r { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.tip .r b { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+details { margin-top: 8px; }
+summary { cursor: pointer; color: var(--ink-2); font-size: 13px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--grid); }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--ink-2); font-weight: 600; }
+.table-scroll { overflow-x: auto; }
+.tiles { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; }
+.tile { aspect-ratio: 1; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: clamp(8px, 1.3vw, 12px); line-height: 1.1; cursor: default; position: relative; }
+.tile b { font-weight: 650; }
+.tile:hover { outline: 2px solid var(--ink); outline-offset: 1px; }
+.scale { display: flex; gap: 2px; align-items: center; font-size: 12px; color: var(--ink-2); margin-top: 10px; flex-wrap: wrap; }
+.scale i { width: 28px; height: 10px; display: inline-block; border-radius: 2px; }
+.methodology { color: var(--ink-2); font-size: 14px; }
+.methodology h2 { color: var(--ink); }
+.methodology code { font-size: 13px; }
+footer { color: var(--muted); font-size: 13px; margin-top: 20px; }
+a { color: var(--s1); }
+.empty { color: var(--muted); font-size: 13px; padding: 24px 0; }
+@media (max-width: 560px) { h1 { font-size: 22px; } .kpi .value { font-size: 24px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>US Job Market Pulse</h1>
+      <p class="sub">Is it getting easier or harder to find a job in America? Openings, layoffs, jobless claims and wages, refreshed weekly.</p>
+      <div class="updated" id="updated"></div>
+    </div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Time range">
+        <button data-range="5" aria-pressed="true">5Y</button>
+        <button data-range="10" aria-pressed="false">10Y</button>
+        <button data-range="0" aria-pressed="false">Since 2001</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="card readout"><h2>This week's readout</h2><ul id="insights"></ul></section>
+  <section class="kpis" id="kpis"></section>
+
+  <div class="grid2">
+    <section class="card"><h2>Labor Market Health Score</h2>
+      <p class="note">0-100. Average historical percentile of six indicators since 2001. Shaded bands are recessions.</p>
+      <div class="chart" id="c-health"></div></section>
+    <section class="card"><h2>Job openings per unemployed person</h2>
+      <p class="note">Above 1.0, there are more open jobs than people looking for work.</p>
+      <div class="chart" id="c-vu"></div></section>
+    <section class="card"><h2>Job openings vs. unemployed people</h2>
+      <p class="note">Millions of people / positions.</p>
+      <div class="chart" id="c-openings"></div></section>
+    <section class="card"><h2>Hires, quits and layoffs</h2>
+      <p class="note">Percent of total employment, monthly (JOLTS).</p>
+      <div class="chart" id="c-rates"></div></section>
+    <section class="card"><h2>Weekly jobless claims</h2>
+      <p class="note">New unemployment insurance filings - the most up-to-date layoff signal (last 5 years).</p>
+      <div class="chart" id="c-claims"></div></section>
+    <section class="card"><h2>Paychecks vs. prices</h2>
+      <p class="note">Year-over-year change in average hourly earnings and consumer prices (%).</p>
+      <div class="chart" id="c-wages"></div></section>
+    <section class="card"><h2>Unemployment rate</h2>
+      <p class="note">U-3 is the headline rate; U-6 adds part-timers who want full-time work and discouraged workers (%).</p>
+      <div class="chart" id="c-unrate"></div></section>
+    <section class="card"><h2>Sahm Rule recession indicator</h2>
+      <p class="note">Rise in the 3-month average unemployment rate above its 12-month low. 0.50+ has signaled every recession since 1970.</p>
+      <div class="chart" id="c-sahm"></div></section>
+  </div>
+
+  <div class="grid2">
+    <section class="card"><h2>Which industries are hiring?</h2>
+      <p class="note" id="ind-note">Change in job openings rate vs. a year earlier (percentage points).</p>
+      <div class="chart" id="c-industry"></div>
+      <details><summary>View as table</summary><div class="table-scroll" id="t-industry"></div></details></section>
+    <section class="card"><h2>Job market by state</h2>
+      <p class="note" id="state-note"></p>
+      <div class="controls" style="margin-bottom:10px"><div class="seg" role="group" aria-label="State metric">
+        <button data-metric="layoffs_rate" aria-pressed="true">Layoffs</button>
+        <button data-metric="openings_rate" aria-pressed="false">Openings</button>
+        <button data-metric="hires_rate" aria-pressed="false">Hires</button></div></div>
+      <div class="chart" id="c-states"></div>
+      <details><summary>View as table</summary><div class="table-scroll" id="t-states"></div></details></section>
+  </div>
+
+  <section class="card methodology">
+    <h2>About this project</h2>
+    <p>Data comes from the U.S. Bureau of Labor Statistics (JOLTS, Current Population Survey, Current Employment Statistics),
+      the Department of Labor (weekly unemployment insurance claims) via <a href="https://fred.stlouisfed.org/">FRED</a>,
+      and the <a href="https://www.bls.gov/developers/">BLS Public Data API</a> for industry and state detail. A GitHub Actions
+      workflow re-runs the Python pipeline every week and republishes this page.</p>
+    <p><strong>Health Score method:</strong> for each indicator (openings per unemployed, hires rate, quits rate, layoffs rate,
+      unemployment rate, initial claims) we compute where the month ranks against every month since 2001, flip the direction for
+      "lower is better" measures, and average the six percentiles. 70+ = Hot, 55-70 = Healthy, 40-55 = Cooling, below 40 = Weak.
+      It is a descriptive index, not a forecast.</p>
+    <p>JOLTS data lags about five weeks; claims data is weekly; state estimates are modeled by BLS and are revised.</p>
+  </section>
+  <footer id="footer"></footer>
+</div>
+
+<script src="data.js"></script>
+<script>
+(() => {
+  const D = window.DASHBOARD_DATA;
+  if (!D) { document.querySelector(".wrap").insertAdjacentHTML("afterbegin",
+    '<p class="empty">No data yet. Run <code>python -m src.pipeline</code> to generate docs/data.js.</p>'); return; }
+
+  const $ = (s) => document.querySelector(s);
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const NS = "http://www.w3.org/2000/svg";
+  const el = (tag, attrs = {}, parent) => { const n = document.createElementNS(NS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]); if (parent) parent.appendChild(n); return n; };
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const md = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  const fmtMonth = (d) => new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  const fmtDay = (d) => new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  let rangeYears = 5;
+
+  // ---------------------------------------------------------------- header, insights, KPIs
+  $("#updated").textContent = "Data refreshed " + D.updated;
+  $("#insights").innerHTML = (D.insights || []).map((i) => `<li>${md(i)}</li>`).join("");
+  $("#footer").innerHTML = `Built with Python, pandas and SQLite. Source data: BLS, U.S. Department of Labor, FRED.` +
+    (D.failed_series && D.failed_series.length ? ` Unavailable this run: ${esc(D.failed_series.join(", "))}.` : "");
+
+  const STATUS = { Hot: "--good", Healthy: "--good", Cooling: "--warning", Weak: "--critical" };
+  const KPI_DEFS = [
+    { key: "health_score", label: "Health Score", fmt: (v) => v.toFixed(0) + "/100", good: +1, dfmt: (d) => d.toFixed(0) + " pts" },
+    { key: "openings_per_unemployed", label: "Openings per unemployed", fmt: (v) => v.toFixed(2), good: +1, dfmt: (d) => d.toFixed(2) },
+    { key: "UNRATE", label: "Unemployment rate", fmt: (v) => v.toFixed(1) + "%", good: -1, dfmt: (d) => d.toFixed(1) + " pts" },
+    { key: "ICSA_4wk", label: "Jobless claims, 4-wk avg", fmt: (v) => Math.round(v / 1000) + "K", good: -1, dfmt: (d) => Math.round(d / 1000) + "K", weekly: true },
+    { key: "JTSLDR", label: "Layoffs rate", fmt: (v) => v.toFixed(1) + "%", good: -1, dfmt: (d) => d.toFixed(1) + " pts" },
+    { key: "JTSQUR", label: "Quits rate", fmt: (v) => v.toFixed(1) + "%", good: +1, dfmt: (d) => d.toFixed(1) + " pts" },
+    { key: "real_wage_growth_yoy", label: "Real wage growth (YoY)", fmt: (v) => (v >= 0 ? "+" : "") + v.toFixed(1) + "%", good: +1, dfmt: (d) => d.toFixed(1) + " pts" },
+    { key: "sahm_indicator", label: "Sahm Rule indicator", fmt: (v) => v.toFixed(2), good: -1, dfmt: (d) => d.toFixed(2) },
+  ];
+  $("#kpis").innerHTML = KPI_DEFS.map((k) => {
+    const x = D.kpis[k.key]; if (!x || x.value == null) return "";
+    let extra = "";
+    if (k.key === "health_score" && x.label) {
+      extra = `<div class="status"><i style="background:var(${STATUS[x.label] || "--muted"})"></i>${esc(x.label)}</div>`;
+    } else if (k.key === "sahm_indicator") {
+      const trig = x.value >= 0.5;
+      extra = `<div class="status"><i style="background:var(${trig ? "--critical" : "--good"})"></i>${trig ? "Triggered" : "Not triggered"}</div>`;
+    }
+    let delta = "";
+    if (x.prior != null) {
+      const d = x.value - x.prior, up = d >= 0, shown = k.dfmt(Math.abs(d));
+      const cls = (up ? "up-" : "down-") + ((up ? 1 : -1) * k.good > 0 ? "good" : "bad");
+      delta = parseFloat(shown) === 0 ? `<div class="delta">No change vs year ago</div>`
+        : `<div class="delta"><span class="${cls}">${up ? "▲" : "▼"} ${shown}</span> vs year ago</div>`;
+    }
+    const when = k.weekly ? "Week of " + fmtDay(x.date) : fmtMonth(x.date);
+    return `<div class="kpi"><div class="label">${k.label}</div><div class="value">${k.fmt(x.value)}</div>${extra}${delta}<div class="delta">${when}</div></div>`;
+  }).join("");
+
+  // ---------------------------------------------------------------- shared helpers
+  function niceTicks(min, max, count = 5) {
+    if (min === max) { min -= 1; max += 1; }
+    const span = max - min, step0 = span / count, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+    const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => span / s <= count) || 10 * mag;
+    const lo = Math.floor(min / step) * step, hi = Math.ceil(max / step) * step, out = [];
+    for (let v = lo; v <= hi + step / 2; v += step) out.push(+v.toFixed(10));
+    return out;
+  }
+  function makeTip(box) { const t = document.createElement("div"); t.className = "tip"; box.appendChild(t); return t; }
+  function placeTip(tip, box, x, y) {
+    tip.style.display = "block";
+    const bw = box.clientWidth, tw = tip.offsetWidth;
+    tip.style.left = Math.max(0, Math.min(bw - tw, x + 14 > bw - tw ? x - tw - 14 : x + 14)) + "px";
+    tip.style.top = Math.max(0, y - 10) + "px";
+  }
+  function legend(box, items, showRecession) {
+    const lg = document.createElement("div"); lg.className = "legend";
+    lg.innerHTML = items.map((s) => `<span><b style="background:${s.color}"></b>${esc(s.name)}</span>`).join("") +
+      (showRecession ? `<span><span class="rec"></span>Recession</span>` : "");
+    box.appendChild(lg);
+  }
+  const cutoff = () => { if (!rangeYears) return null; const last = new Date(D.updated.slice(0, 10) + "T00:00:00");
+    const c = isNaN(last) ? new Date() : last; c.setFullYear(c.getFullYear() - rangeYears); return c; };
+
+  // ---------------------------------------------------------------- line chart
+  function lineChart(id, opts) {
+    const box = document.getElementById(id); box.innerHTML = "";
+    const cut = opts.ignoreRange ? null : cutoff();
+    const series = opts.series.map((s) => ({ ...s, pts: (s.data || []).map(([d, v]) => [new Date(d + "T00:00:00"), v, d])
+      .filter((p) => !cut || p[0] >= cut) })).filter((s) => s.pts.length);
+    if (!series.length) { box.innerHTML = '<p class="empty">No data available.</p>'; return; }
+    if (series.length > 1) legend(box, series, !!opts.recessions);
+    else if (opts.recessions) legend(box, [], true);
+
+    const W = Math.max(280, box.clientWidth), H = opts.height || 250;
+    const m = { l: 46, r: series.length > 1 ? 76 : 16, t: 10, b: 26 };
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": opts.aria || id }, box);
+    const xs = series.flatMap((s) => s.pts.map((p) => +p[0])), ys = series.flatMap((s) => s.pts.map((p) => p[1]));
+    const refs = (opts.refs || []).map((r) => r.y);
+    let yMin = Math.min(...ys, ...refs), yMax = Math.max(...ys, ...refs);
+    if (opts.zeroBase) yMin = Math.min(0, yMin);
+    const ticks = niceTicks(yMin, yMax, 5); yMin = ticks[0]; yMax = ticks[ticks.length - 1];
+    const x0 = Math.min(...xs), x1 = Math.max(...xs);
+    const X = (t) => m.l + ((t - x0) / (x1 - x0 || 1)) * (W - m.l - m.r);
+    const Y = (v) => m.t + (1 - (v - yMin) / (yMax - yMin || 1)) * (H - m.t - m.b);
+
+    (opts.recessions ? D.recessions : []).forEach(([a, b]) => {
+      const s = Math.max(+new Date(a + "T00:00:00"), x0), e = Math.min(+new Date(b + "T00:00:00"), x1);
+      if (e > s) el("rect", { x: X(s), y: m.t, width: Math.max(1, X(e) - X(s)), height: H - m.t - m.b, fill: css("--rec") }, svg);
+    });
+    ticks.forEach((t) => {
+      el("line", { x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t), stroke: t === 0 ? css("--axis") : css("--grid"), "stroke-width": 1 }, svg);
+      const lab = el("text", { x: m.l - 8, y: Y(t) + 4, "text-anchor": "end", "font-size": 11, fill: css("--muted") }, svg);
+      lab.textContent = opts.yFmt ? opts.yFmt(t) : t;
+    });
+    const span = (x1 - x0) / 3.156e10, step = span > 12 ? 4 : span > 6 ? 2 : 1;
+    for (let y = new Date(x0).getFullYear() + 1; y <= new Date(x1).getFullYear(); y += 1) {
+      if ((y % step) !== 0) continue;
+      const t = +new Date(y, 0, 1); if (t < x0 || t > x1) continue;
+      el("line", { x1: X(t), x2: X(t), y1: H - m.b, y2: H - m.b + 4, stroke: css("--axis") }, svg);
+      const lab = el("text", { x: X(t), y: H - 6, "text-anchor": "middle", "font-size": 11, fill: css("--muted") }, svg);
+      lab.textContent = y;
+    }
+    (opts.refs || []).forEach((r) => {
+      el("line", { x1: m.l, x2: W - m.r, y1: Y(r.y), y2: Y(r.y), stroke: css("--ink-2"), "stroke-width": 1, "stroke-dasharray": "4 4" }, svg);
+      const lab = el("text", { x: m.l + 4, y: Y(r.y) - 5, "font-size": 11, fill: css("--ink-2") }, svg);
+      lab.textContent = r.label;
+    });
+    series.forEach((s) => {
+      const d = s.pts.map((p, i) => (i ? "L" : "M") + X(+p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join("");
+      el("path", { d, fill: "none", stroke: s.color, "stroke-width": s.width || 2, "stroke-linejoin": "round", "stroke-linecap": "round", opacity: s.opacity || 1 }, svg);
+    });
+    // direct labels at line ends (<= 4 series), nudged apart
+    if (series.length > 1) {
+      const labs = series.map((s) => ({ s, y: Y(s.pts[s.pts.length - 1][1]) })).sort((a, b) => a.y - b.y);
+      for (let i = 1; i < labs.length; i++) if (labs[i].y - labs[i - 1].y < 13) labs[i].y = labs[i - 1].y + 13;
+      labs.forEach(({ s, y }) => {
+        const t = el("text", { x: W - m.r + 6, y: y + 4, "font-size": 11, fill: css("--ink-2") }, svg);
+        t.textContent = s.short || s.name;
+      });
+    }
+    // hover layer: crosshair + tooltip
+    const tip = makeTip(box);
+    const cross = el("line", { y1: m.t, y2: H - m.b, stroke: css("--axis"), "stroke-width": 1, visibility: "hidden" }, svg);
+    const dots = series.map((s) => el("circle", { r: 4.5, fill: s.color, stroke: css("--surface"), "stroke-width": 2, visibility: "hidden" }, svg));
+    const hit = el("rect", { x: m.l, y: 0, width: W - m.l - m.r, height: H, fill: "transparent" }, svg);
+    const ref = series[0].pts;
+    const nearest = (pts, t) => { let lo = 0, hi = pts.length - 1;
+      while (hi - lo > 1) { const mid = (lo + hi) >> 1; (+pts[mid][0] < t ? lo = mid : hi = mid); }
+      return Math.abs(+pts[lo][0] - t) <= Math.abs(+pts[hi][0] - t) ? pts[lo] : pts[hi]; };
+    function move(evt) {
+      const r = svg.getBoundingClientRect(), px = (evt.clientX - r.left) * (W / r.width);
+      const t = x0 + ((px - m.l) / (W - m.l - m.r)) * (x1 - x0);
+      const p0 = nearest(ref, t), cx = X(+p0[0]);
+      cross.setAttribute("x1", cx); cross.setAttribute("x2", cx); cross.setAttribute("visibility", "visible");
+      let rows = "";
+      series.forEach((s, i) => { const p = nearest(s.pts, +p0[0]);
+        if (Math.abs(+p[0] - +p0[0]) > 20 * 864e5) { dots[i].setAttribute("visibility", "hidden"); return; }
+        dots[i].setAttribute("cx", X(+p[0])); dots[i].setAttribute("cy", Y(p[1])); dots[i].setAttribute("visibility", "visible");
+        rows += `<div class="r"><b style="background:${s.color}"></b>${esc(s.name)}: <strong>${opts.tipFmt ? opts.tipFmt(p[1]) : p[1]}</strong></div>`; });
+      tip.innerHTML = `<div class="d">${opts.weekly ? "Week of " + fmtDay(p0[2]) : fmtMonth(p0[2])}</div>${rows}`;
+      placeTip(tip, box, cx * (r.width / W), (evt.clientY - r.top));
+    }
+    const hide = () => { tip.style.display = "none"; cross.setAttribute("visibility", "hidden"); dots.forEach((d) => d.setAttribute("visibility", "hidden")); };
+    hit.addEventListener("pointermove", move); hit.addEventListener("pointerleave", hide);
+  }
+
+  // ---------------------------------------------------------------- industry diverging bars
+  function industryChart() {
+    const box = $("#c-industry"); box.innerHTML = "";
+    const rows = (D.industry || []).filter((r) => r.openings_rate_yoy_change != null)
+      .sort((a, b) => b.openings_rate_yoy_change - a.openings_rate_yoy_change);
+    if (!rows.length) { box.innerHTML = '<p class="empty">Industry data unavailable.</p>'; return; }
+    $("#ind-note").textContent = `Change in job openings rate, ${fmtMonth(rows[0].as_of + "-01")} vs. a year earlier (percentage points).`;
+    const W = Math.max(280, box.clientWidth), rowH = 24, labW = Math.min(210, W * 0.42), m = { t: 4, b: 22, r: 44 };
+    const H = m.t + m.b + rows.length * rowH;
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": "Change in openings rate by industry" }, box);
+    const maxAbs = Math.max(0.5, ...rows.map((r) => Math.abs(r.openings_rate_yoy_change)));
+    const x0 = labW + 44, x1 = W - m.r, mid = (x0 + x1) / 2, sc = (x1 - x0) / 2 / maxAbs;
+    const tip = makeTip(box);
+    rows.forEach((r, i) => {
+      const v = r.openings_rate_yoy_change, y = m.t + i * rowH, bh = 14, by = y + (rowH - bh) / 2;
+      const name = el("text", { x: labW, y: y + rowH / 2 + 4, "text-anchor": "end", "font-size": 12, fill: css("--ink-2") }, svg);
+      name.textContent = r.industry.length > 30 && W < 520 ? r.industry.slice(0, 28) + "…" : r.industry;
+      const w = Math.max(2, Math.abs(v) * sc), x = v >= 0 ? mid : mid - w;
+      el("rect", { x, y: by, width: w, height: bh, rx: 4, fill: v >= 0 ? css("--pos") : css("--neg") }, svg);
+      const val = el("text", { x: v >= 0 ? mid + w + 4 : mid - w - 4, y: y + rowH / 2 + 4, "text-anchor": v >= 0 ? "start" : "end", "font-size": 11, fill: css("--ink") }, svg);
+      val.textContent = (v > 0 ? "+" : "") + v.toFixed(1);
+      const hit = el("rect", { x: 0, y, width: W, height: rowH, fill: "transparent" }, svg);
+      hit.addEventListener("pointermove", (e) => { const b = svg.getBoundingClientRect();
+        tip.innerHTML = `<div class="d">${esc(r.industry)}</div>` +
+          `<div class="r">Openings rate: <strong>${r.openings_rate ?? "–"}%</strong> (${v > 0 ? "+" : ""}${v} pts YoY)</div>` +
+          `<div class="r">Hires rate: <strong>${r.hires_rate ?? "–"}%</strong></div>` +
+          `<div class="r">Layoffs rate: <strong>${r.layoffs_rate ?? "–"}%</strong></div>`;
+        placeTip(tip, box, e.clientX - b.left, e.clientY - b.top); });
+      hit.addEventListener("pointerleave", () => (tip.style.display = "none"));
+    });
+    el("line", { x1: mid, x2: mid, y1: m.t, y2: H - m.b + 2, stroke: css("--axis") }, svg);
+    [["Fewer openings", x0, "start"], ["More openings", x1, "end"]].forEach(([t, x, a]) => {
+      const lab = el("text", { x, y: H - 6, "text-anchor": a, "font-size": 11, fill: css("--muted") }, svg); lab.textContent = t; });
+    $("#t-industry").innerHTML = table(rows, [["industry", "Industry"], ["openings_rate", "Openings %"], ["openings_rate_yoy_change", "YoY pts"],
+      ["hires_rate", "Hires %"], ["layoffs_rate", "Layoffs %"], ["net_hiring_rate", "Net hiring"]]);
+  }
+
+  // ---------------------------------------------------------------- state tile map
+  const TILE = { AK:[0,0],ME:[11,0],VT:[10,1],NH:[11,1],WA:[1,2],ID:[2,2],MT:[3,2],ND:[4,2],MN:[5,2],IL:[6,2],WI:[7,2],MI:[8,2],NY:[9,2],RI:[10,2],MA:[11,2],
+    OR:[1,3],NV:[2,3],WY:[3,3],SD:[4,3],IA:[5,3],IN:[6,3],OH:[7,3],PA:[8,3],NJ:[9,3],CT:[10,3],CA:[1,4],UT:[2,4],CO:[3,4],NE:[4,4],MO:[5,4],KY:[6,4],WV:[7,4],VA:[8,4],MD:[9,4],DE:[10,4],
+    AZ:[2,5],NM:[3,5],KS:[4,5],AR:[5,5],TN:[6,5],NC:[7,5],SC:[8,5],DC:[9,5],OK:[4,6],LA:[5,6],MS:[6,6],AL:[7,6],GA:[8,6],HI:[0,7],TX:[4,7],FL:[9,7] };
+  const METRIC_LABEL = { layoffs_rate: "layoffs rate", openings_rate: "job openings rate", hires_rate: "hires rate" };
+  let stateMetric = "layoffs_rate";
+  function stateChart() {
+    const box = $("#c-states"); box.innerHTML = "";
+    const rows = (D.state || []).filter((r) => r[stateMetric] != null);
+    if (!rows.length) { box.innerHTML = '<p class="empty">State data unavailable.</p>'; $("#state-note").textContent = ""; return; }
+    $("#state-note").textContent = `Monthly ${METRIC_LABEL[stateMetric]} (% of employment), ${fmtMonth(rows[0].as_of + "-01")}. Scale runs low → high, left to right.`;
+    const vals = rows.map((r) => r[stateMetric]).sort((a, b) => a - b);
+    const q = [0.2, 0.4, 0.6, 0.8].map((p) => vals[Math.floor(p * (vals.length - 1))]);
+    const bin = (v) => q.filter((t) => v > t).length + 1;
+    const grid = document.createElement("div"); grid.className = "tiles"; box.appendChild(grid);
+    const by = Object.fromEntries(rows.map((r) => [r.state, r]));
+    const tip = makeTip(box);
+    for (let row = 0; row < 8; row++) for (let col = 0; col < 12; col++) {
+      const st = Object.keys(TILE).find((k) => TILE[k][0] === col && TILE[k][1] === row);
+      const d = document.createElement("div"); d.className = "tile";
+      if (st && by[st]) {
+        const r = by[st], b = bin(r[stateMetric]);
+        d.style.background = `var(--seq-${b})`; d.style.color = `var(--seq-ink-${b})`;
+        d.innerHTML = `<b>${st}</b><span>${r[stateMetric].toFixed(1)}</span>`;
+        d.setAttribute("aria-label", `${r.state_name}: ${r[stateMetric]}%`);
+        d.addEventListener("pointermove", (e) => { const bx = box.getBoundingClientRect();
+          const chg = r[stateMetric + "_yoy_change"];
+          tip.innerHTML = `<div class="d">${esc(r.state_name)}</div>` +
+            `<div class="r">Layoffs rate: <strong>${r.layoffs_rate ?? "–"}%</strong></div>` +
+            `<div class="r">Openings rate: <strong>${r.openings_rate ?? "–"}%</strong></div>` +
+            `<div class="r">Hires rate: <strong>${r.hires_rate ?? "–"}%</strong></div>` +
+            (chg != null ? `<div class="r">${esc(METRIC_LABEL[stateMetric])} vs year ago: <strong>${chg > 0 ? "+" : ""}${chg} pts</strong></div>` : "");
+          placeTip(tip, box, e.clientX - bx.left, e.clientY - bx.top); });
+        d.addEventListener("pointerleave", () => (tip.style.display = "none"));
+      } else if (st) { d.style.border = `1px dashed var(--grid)`; d.innerHTML = `<b style="color:var(--muted)">${st}</b>`; }
+      grid.appendChild(d);
+    }
+    const lo = vals[0], hi = vals[vals.length - 1], edges = [lo, ...q, hi];
+    const scale = document.createElement("div"); scale.className = "scale";
+    scale.innerHTML = [1, 2, 3, 4, 5].map((b) => `<span title="${edges[b - 1].toFixed(1)}–${edges[b].toFixed(1)}%"><i style="background:var(--seq-${b})"></i></span>`).join("") +
+      `<span style="margin-left:6px">${lo.toFixed(1)}% → ${hi.toFixed(1)}% (quintiles)</span>`;
+    box.appendChild(scale);
+    const sorted = [...rows].sort((a, b) => b[stateMetric] - a[stateMetric]);
+    $("#t-states").innerHTML = table(sorted, [["state_name", "State"], ["layoffs_rate", "Layoffs %"], ["layoffs_rate_yoy_change", "YoY pts"],
+      ["openings_rate", "Openings %"], ["hires_rate", "Hires %"]]);
+  }
+
+  function table(rows, cols) {
+    return `<table><thead><tr>${cols.map(([, h]) => `<th>${h}</th>`).join("")}</tr></thead><tbody>` +
+      rows.map((r) => `<tr>${cols.map(([k]) => `<td>${r[k] == null ? "–" : esc(r[k])}</td>`).join("")}</tr>`).join("") + "</tbody></table>";
+  }
+
+  // ---------------------------------------------------------------- render all
+  const S = D.series;
+  const pct1 = (v) => v.toFixed(1) + "%";
+  function renderAll() {
+    const c1 = css("--s1"), c2 = css("--s2"), c3 = css("--s3");
+    lineChart("c-health", { series: [{ name: "Health Score", data: S.health_score, color: c1 }], recessions: true,
+      yFmt: (v) => v, tipFmt: (v) => v.toFixed(0) + " / 100",
+      refs: [{ y: 70, label: "Hot (70+)" }, { y: 40, label: "Weak (<40)" }] });
+    lineChart("c-vu", { series: [{ name: "Openings per unemployed", data: S.openings_per_unemployed, color: c1 }], recessions: true,
+      yFmt: (v) => v.toFixed(1), tipFmt: (v) => v.toFixed(2), refs: [{ y: 1, label: "1 opening per job seeker" }] });
+    lineChart("c-openings", { series: [
+        { name: "Job openings", short: "Openings", data: S.openings, color: c1 },
+        { name: "Unemployed people", short: "Unemployed", data: S.unemployed, color: c2 }],
+      recessions: true, zeroBase: true, yFmt: (v) => (v / 1000).toFixed(0) + "M", tipFmt: (v) => (v / 1000).toFixed(2) + "M" });
+    lineChart("c-rates", { series: [
+        { name: "Hires rate", short: "Hires", data: S.hires_rate, color: c1 },
+        { name: "Quits rate", short: "Quits", data: S.quits_rate, color: c2 },
+        { name: "Layoffs rate", short: "Layoffs", data: S.layoffs_rate, color: c3 }],
+      recessions: true, zeroBase: true, yFmt: (v) => v + "%", tipFmt: pct1 });
+    lineChart("c-claims", { weekly: true, series: [
+        { name: "Initial claims (weekly)", short: "Weekly", data: S.claims, color: c1, width: 1.5, opacity: 0.55 },
+        { name: "4-week average", short: "4-wk avg", data: S.claims_4wk, color: c2 }],
+      yFmt: (v) => Math.round(v / 1000) + "K", tipFmt: (v) => Math.round(v).toLocaleString() });
+    lineChart("c-wages", { series: [
+        { name: "Wage growth", short: "Wages", data: S.wage_growth, color: c1 },
+        { name: "Inflation (CPI)", short: "Inflation", data: S.inflation, color: c2 }],
+      recessions: true, yFmt: (v) => v + "%", tipFmt: pct1 });
+    lineChart("c-unrate", { series: [
+        { name: "U-3 unemployment", short: "U-3", data: S.unrate, color: c1 },
+        { name: "U-6 underemployment", short: "U-6", data: S.u6rate, color: c2 }],
+      recessions: true, zeroBase: true, yFmt: (v) => v + "%", tipFmt: pct1 });
+    lineChart("c-sahm", { series: [{ name: "Sahm indicator", data: S.sahm, color: c1 }], recessions: true,
+      yFmt: (v) => v.toFixed(1), tipFmt: (v) => v.toFixed(2), refs: [{ y: 0.5, label: "Recession signal (0.50)" }] });
+    industryChart();
+    stateChart();
+  }
+
+  document.querySelectorAll("[data-range]").forEach((b) => b.addEventListener("click", () => {
+    rangeYears = +b.dataset.range;
+    document.querySelectorAll("[data-range]").forEach((o) => o.setAttribute("aria-pressed", o === b));
+    renderAll();
+  }));
+  document.querySelectorAll("[data-metric]").forEach((b) => b.addEventListener("click", () => {
+    stateMetric = b.dataset.metric;
+    document.querySelectorAll("[data-metric]").forEach((o) => o.setAttribute("aria-pressed", o === b));
+    stateChart();
+  }));
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(renderAll, 150); });
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
+  renderAll();
+})();
+</script>
+</body>
+</html>
