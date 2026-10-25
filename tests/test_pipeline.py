@@ -107,3 +107,19 @@ def test_full_pipeline_on_synthetic_data(project):
     assert data["series"]["claims_4wk"] and data["recessions"]
     assert "\nold\n" not in C.README_PATH.read_text() and "outro" in C.README_PATH.read_text()
     assert (C.REPORTS_DIR / "summary.md").exists() and C.DB_PATH.exists()
+
+
+def test_national_bls_ids_and_recession_series():
+    ids = {C.national_series_id(s) for s in C.NATIONAL_BLS}
+    assert len(ids) == len(C.NATIONAL_BLS)
+    assert C.national_series_id("JTSJOL") == "JTS000000000000000JOL"
+    assert all(len(C.national_series_id(s)) == 21 for s in C.NATIONAL_BLS if s.startswith("JTS"))
+    rec = fetch_data.recession_series().set_index("date")["value"]
+    assert rec["2020-03-01"] == 1 and rec["2019-01-01"] == 0 and rec["2009-06-01"] == 1
+
+
+def test_pipeline_runs_without_claims(project):
+    raw = pd.read_csv(C.RAW_DIR / "fred.csv")
+    raw[~raw.series_id.isin(["ICSA", "CCSA"])].to_csv(C.RAW_DIR / "fred.csv", index=False)
+    data = build_dashboard.build(*analyze.run())
+    assert data["series"]["claims"] == [] and data["series"]["health_score"]
