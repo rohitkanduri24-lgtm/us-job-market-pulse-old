@@ -1,0 +1,51 @@
+name: Refresh labor market data
+
+on:
+  schedule:
+    # Every Thursday 15:00 UTC (~11am ET), after the weekly jobless claims release
+    - cron: "0 15 * * 4"
+  workflow_dispatch: {}   # "Run workflow" button in the Actions tab
+  push:
+    branches: [main]
+    paths: ["src/**", "requirements.txt", ".github/workflows/refresh.yml"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: python -m pytest -q
+
+      - name: Fetch data and rebuild dashboard
+        env:
+          BLS_API_KEY: ${{ secrets.BLS_API_KEY }}   # optional; add under Settings > Secrets
+        run: python -m src.pipeline
+
+      - name: Commit refreshed data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data docs reports README.md
+          if git diff --cached --quiet; then
+            echo "No changes in the data this run."
+          else
+            git commit -m "Data refresh $(date -u +'%Y-%m-%d')"
+            git push
+          fi
