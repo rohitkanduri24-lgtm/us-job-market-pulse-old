@@ -166,12 +166,12 @@ a { color: var(--s1); }
   <section class="card methodology">
     <h2>About this project</h2>
     <p>Data comes from the U.S. Bureau of Labor Statistics (JOLTS, Current Population Survey, Current Employment Statistics),
-      the Department of Labor (weekly unemployment insurance claims) via <a href="https://fred.stlouisfed.org/">FRED</a>,
-      and the <a href="https://www.bls.gov/developers/">BLS Public Data API</a> for industry and state detail. A GitHub Actions
+      the <a href="https://www.bls.gov/developers/">BLS Public Data API</a> (national, industry and state detail),
+      NBER recession dates and, when configured, weekly unemployment insurance claims from the Department of Labor via the FRED API. A GitHub Actions
       workflow re-runs the Python pipeline every week and republishes this page.</p>
     <p><strong>Health Score method:</strong> for each indicator (openings per unemployed, hires rate, quits rate, layoffs rate,
-      unemployment rate, initial claims) we compute where the month ranks against every month since 2001, flip the direction for
-      "lower is better" measures, and average the six percentiles. 70+ = Hot, 55-70 = Healthy, 40-55 = Cooling, below 40 = Weak.
+      unemployment rate and, when available, initial claims) we compute where the month ranks against every month since 2001, flip the direction for
+      "lower is better" measures, and average the percentiles. 70+ = Hot, 55-70 = Healthy, 40-55 = Cooling, below 40 = Weak.
       It is a descriptive index, not a forecast.</p>
     <p>JOLTS data lags about five weeks; claims data is weekly; state estimates are modeled by BLS and are revised.</p>
   </section>
@@ -199,7 +199,7 @@ a { color: var(--s1); }
   // ---------------------------------------------------------------- header, insights, KPIs
   $("#updated").textContent = "Data refreshed " + D.updated;
   $("#insights").innerHTML = (D.insights || []).map((i) => `<li>${md(i)}</li>`).join("");
-  $("#footer").innerHTML = `Built with Python, pandas and SQLite. Source data: BLS, U.S. Department of Labor, FRED.` +
+  $("#footer").innerHTML = `Built with Python, pandas and SQLite. Source data: U.S. Bureau of Labor Statistics, NBER, U.S. Department of Labor.` +
     (D.failed_series && D.failed_series.length ? ` Unavailable this run: ${esc(D.failed_series.join(", "))}.` : "");
 
   const STATUS = { Hot: "--good", Healthy: "--good", Cooling: "--warning", Weak: "--critical" };
@@ -449,7 +449,8 @@ a { color: var(--s1); }
         { name: "Quits rate", short: "Quits", data: S.quits_rate, color: c2 },
         { name: "Layoffs rate", short: "Layoffs", data: S.layoffs_rate, color: c3 }],
       recessions: true, zeroBase: true, yFmt: (v) => v + "%", tipFmt: pct1 });
-    lineChart("c-claims", { weekly: true, series: [
+    if (!(S.claims && S.claims.length)) { $("#c-claims").closest(".card").style.display = "none"; }
+    else lineChart("c-claims", { weekly: true, series: [
         { name: "Initial claims (weekly)", short: "Weekly", data: S.claims, color: c1, width: 1.5, opacity: 0.55 },
         { name: "4-week average", short: "4-wk avg", data: S.claims_4wk, color: c2 }],
       yFmt: (v) => Math.round(v / 1000) + "K", tipFmt: (v) => Math.round(v).toLocaleString() });
