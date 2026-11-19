@@ -1,6 +1,6 @@
 # US Job Market Pulse - Latest Readout
 
-_Data refreshed: 2026-11-12 15:47 UTC_
+_Data refreshed: 2026-11-19 15:48 UTC_
 
 - **Labor Market Health Score: 67/100 (Healthy)** as of September 2026, up 12 points from a year earlier.
 - There are **1.06 job openings per unemployed person** (vs 0.94 a year ago). More openings than job seekers.
